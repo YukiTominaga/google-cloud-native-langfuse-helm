@@ -1,0 +1,65 @@
+{{- if .Values.langfuse.gateway.deploy }}
+kind: Gateway
+apiVersion: gateway.networking.k8s.io/v1
+metadata:
+  name: {{ include "langfuse.fullname" . }}-gateway
+  namespace: {{ include "common.names.namespace" . }}
+  {{- if .Values.langfuse.gateway.annotations }}
+  annotations:
+    {{- toYaml .Values.langfuse.gateway.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  gatewayClassName: gke-l7-global-external-managed
+  listeners:
+    - name: https
+      protocol: HTTPS
+      port: 443
+      allowedRoutes:
+        kinds:
+          - kind: HTTPRoute
+        namespaces:
+          from: All
+  {{- if .Values.langfuse.gateway.addressName }}
+  addresses:
+    - type: NamedAddress
+      value: {{ .Values.langfuse.gateway.addressName }}
+  {{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "langfuse.fullname" . }}-route
+  namespace: {{ include "common.names.namespace" . }}
+spec:
+  parentRefs:
+    - name: {{ include "langfuse.fullname" . }}-gateway
+      kind: Gateway
+      sectionName: https
+  hostnames:
+    - "{{ .Values.langfuse.httpRoute.host }}"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ include "langfuse.fullname" . }}-web
+          kind: Service
+          port: {{ .Values.service.port }}
+          weight: 1
+{{- end }}
+---
+{{- if .Values.langfuse.gateway.policy.enabled }}
+apiVersion: networking.gke.io/v1
+kind: GCPGatewayPolicy
+metadata:
+  name: langfuse-gateway-policy
+  namespace: {{ include "common.names.namespace" . }}
+spec:
+  default:
+    sslPolicy: {{ .Values.langfuse.gateway.policy.name }}
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: langfuse-gateway
+{{- end }}

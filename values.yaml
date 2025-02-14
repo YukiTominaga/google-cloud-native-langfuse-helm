@@ -8,16 +8,14 @@ image:
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+namespaceOverride: ""
 
 langfuse:
-  port: 3000
   nodeEnv: production
   next:
     healthcheckBasePath: ""
   nextauth:
-    url: http://localhost:3000
-    secret: changeme
-  salt: changeme
+    url: <NEXT_AUTH_URL>
   licenseKey: ""
   telemetryEnabled: True
   nextPublicSignUpDisabled: False
@@ -26,8 +24,18 @@ langfuse:
   extraVolumes: []
   extraInitContainers: []
   extraVolumeMounts: []
-
+  gateway:
+    deploy: true
+    annotations:
+      networking.gke.io/certmap: <CERTIFICATION_MANAGER_CERT_MAP>
+    policy:
+      enabled: true
+      name: <SSL_POLICY_NAME>
+    addressName: <GLOBAL_EXTERNAL_IP_NAME>
+  httpRoute:
+    host: <HOST_NAME>
   web:
+    port: 3000
     resources: {}
     hpa:
       enabled: false
@@ -42,6 +50,7 @@ langfuse:
       updatePolicy:
         updateMode: Auto
   worker:
+    port: 3030
     resources: {}
     hpa:
       enabled: false
@@ -59,7 +68,7 @@ langfuse:
   additionalEnv:
     # REDIS
     - name: "REDIS_CONNECTION_STRING"
-      value: "redis://default:changeme@langfuse-valkey-primary:6379/0"
+      value: "redis://default:<REDIS_PASSWORD>@langfuse-valkey-primary:6379/0"
     # CLICKHOUSE
     - name: "CLICKHOUSE_MIGRATION_URL"
       value: "clickhouse://langfuse-clickhouse:9000"
@@ -68,38 +77,91 @@ langfuse:
     - name: "CLICKHOUSE_USER"
       value: "default"
     - name: "CLICKHOUSE_PASSWORD"
-      value: "changeme"
+      value: "<CLICKHOUSE_PASSWORD>"
     # S3 / MinIO
     - name: "LANGFUSE_S3_EVENT_UPLOAD_ENABLED"
       value: "true"
     - name: "LANGFUSE_S3_EVENT_UPLOAD_BUCKET"
-      value: "langfuse"
+      value: "<GCS_BUCKET_NAME>"
     - name: "LANGFUSE_S3_EVENT_UPLOAD_REGION"
       value: "auto"
-    - name: "LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID"
-      value: "minio"
-    - name: "LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY"
-      value: "miniosecret"
     - name: "LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT"
-      value: "http://langfuse-minio:9000"
+      value: "https://storage.googleapis.com"
     - name: "LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE"
+      value: "true"
+    - name: "LANGFUSE_S3_EVENT_UPLOAD_PREFIX"
+      value: "events/"
+    - name: AUTH_GOOGLE_ALLOWED_DOMAINS
+      value: "<ALLOWED_DOMAINS>"
+    - name: AUTH_DISABLE_USERNAME_PASSWORD
       value: "true"
 
 serviceAccount:
   create: true
-  annotations: {}
-  name: ""
+  annotations:
+    iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT>
+  name: "langfuse"
+
+secretStore:
+  enabled: true
+  projectID: <PROJECT_ID>
+  clusterLocation: <CLUSTER_LOCATION>
+  clusterName: <CLUSTER_NAME>
+
+externalSecret:
+  refreshInterval: 1h
+  data:
+    - secretKey: DATABASE_URL
+      remoteRef:
+        key: LANGFUSE_DATABASE_PROXY_URL # value example: "postgresql://<USER>:<PASSWORD>@localhost:5432/langfuse"
+        version: latest
+    - secretKey: LANGFUSE_PUBLIC_KEY
+      remoteRef:
+        key: LANGFUSE_PUBLIC_KEY
+        version: latest
+    - secretKey: LANGFUSE_SECRET_KEY
+      remoteRef:
+        key: LANGFUSE_SECRET_KEY
+        version: latest
+    - secretKey: NEXTAUTH_SECRET
+      remoteRef:
+        key: LANGFUSE_NEXTAUTH_SECRET
+        version: latest
+    - secretKey: SALT
+      remoteRef:
+        key: LANGFUSE_SALT
+        version: latest
+    - secretKey: AUTH_GOOGLE_CLIENT_ID
+      remoteRef:
+        key: LANGFUSE_AUTH_GOOGLE_CLIENT_ID
+        version: latest
+    - secretKey: AUTH_GOOGLE_CLIENT_SECRET
+      remoteRef:
+        key: LANGFUSE_AUTH_GOOGLE_CLIENT_SECRET
+        version: latest
+    - secretKey: LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID
+      remoteRef:
+        key: LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID
+        version: latest
+    - secretKey: LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY
+      remoteRef:
+        key: LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY
+        version: latest
 
 podAnnotations: {}
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  runAsNonRoot: true
 
-podSecurityContext: {}
-
-securityContext: {}
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
 
 service:
   type: ClusterIP
   port: 3000
-  nodePort: ""
 
 ingress:
   enabled: false
@@ -110,29 +172,38 @@ nodeSelector: {}
 
 tolerations: []
 
-affinity: {}
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: cloud.google.com/gke-nodepool
+          operator: In
+          values:
+          - <NODE_POOL_NAME>
 
 postgresql:
-  host: langfuse-postgresql
-  auth:
-    username: postgres
-    password: postgres
-    database: postgres_langfuse
-  deploy: true
+  host: ""
+  auth: {}
+  deploy: false
   architecture: standalone
   primary:
     service:
       ports:
         postgresql: 5432
+  cloudsqlProxy:
+    project: <PROJECT_ID>
+    region: <INSTANCE_REGION>
+    instance: <INSTANCE_NAME>
 
 clickhouse:
   deploy: true
   shards: 1 # Fixed. Langfuse does not support multi-shard clusters.
   replicaCount: 3
-  resourcesPreset: 2xlarge
+  resourcesPreset: large
   auth:
     username: default
-    password: changeme
+    password: <CLICKHOUSE_PASSWORD>
 
 valkey:
   deploy: true
@@ -141,13 +212,11 @@ valkey:
     extraFlags:
       - "--maxmemory-policy noeviction"
   auth:
-    password: changeme
+    password: <VALKEY_PASSWORD>
 
 minio:
-  deploy: true
+  deploy: false
   defaultBuckets: 'langfuse'
-  auth:
-    rootUser: 'minio'
-    rootPassword: 'miniosecret'
+  auth: {}
 
 extraManifests: []
