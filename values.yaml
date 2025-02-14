@@ -100,7 +100,6 @@ serviceAccount:
   create: true
   annotations:
     iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT>
-  name: "langfuse"
 
 secretStore:
   enabled: true
@@ -162,9 +161,6 @@ securityContext:
 service:
   type: ClusterIP
   port: 3000
-
-ingress:
-  enabled: false
 
 resources: {}
 
