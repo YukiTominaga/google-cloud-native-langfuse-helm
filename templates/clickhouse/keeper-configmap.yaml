@@ -1,0 +1,42 @@
+{{- if and .Values.clickhouse.deploy .Values.clickhouse.keeper.enabled }}
+{{- $fullname := include "langfuse.fullname" . -}}
+{{- $ns := .Release.Namespace -}}
+{{- $keeperReplicas := int .Values.clickhouse.keeper.replicaCount -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-clickhouse-keeper-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "langfuse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse-keeper
+data:
+  keeper.xml: |-
+    <clickhouse>
+      <logger>
+        <level>none</level>
+        <console>true</console>
+        <console_log_level>warning</console_log_level>
+      </logger>
+      <listen_host>0.0.0.0</listen_host>
+      <keeper_server>
+        <tcp_port>{{ .Values.clickhouse.keeper.clientPort }}</tcp_port>
+        <server_id from_env="KEEPER_ID"></server_id>
+        <log_storage_path>/var/lib/clickhouse-keeper/log</log_storage_path>
+        <snapshot_storage_path>/var/lib/clickhouse-keeper/snapshots</snapshot_storage_path>
+        <coordination_settings>
+          <operation_timeout_ms>10000</operation_timeout_ms>
+          <session_timeout_ms>30000</session_timeout_ms>
+        </coordination_settings>
+        <raft_configuration>
+{{- range $i, $_ := until $keeperReplicas }}
+          <server>
+            <id>{{ add $i 1 }}</id>
+            <hostname>{{ printf "%s-clickhouse-keeper-%d.%s-clickhouse-keeper-headless.%s.svc.cluster.local" $fullname $i $fullname $ns }}</hostname>
+            <port>{{ $.Values.clickhouse.keeper.raftPort }}</port>
+          </server>
+{{- end }}
+        </raft_configuration>
+      </keeper_server>
+    </clickhouse>
+{{- end }}

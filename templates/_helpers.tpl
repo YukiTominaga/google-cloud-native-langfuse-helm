@@ -85,3 +85,7 @@ Return PostgreSQL fullname
 {{- printf "%s-postgresql" (include "langfuse.fullname" .) -}}
 {{- end }}
 {{- end }}
+
+{{- define "common.names.namespace" -}}
+{{- default .Release.Namespace .Values.namespaceOverride -}}
+{{- end }}

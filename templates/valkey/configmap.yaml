@@ -1,0 +1,15 @@
+{{- if .Values.valkey.deploy }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "langfuse.fullname" . }}-valkey-config
+  labels:
+    {{- include "langfuse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+data:
+  valkey.conf: |
+    # ユーザー名とパスワード設定
+    requirepass {{ .Values.valkey.auth.password }}
+    user default on >{{ .Values.valkey.auth.password }} ~* &* +@all
+{{- end }}
+

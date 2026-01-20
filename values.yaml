@@ -15,7 +15,7 @@ langfuse:
   next:
     healthcheckBasePath: ""
   nextauth:
-    url: <NEXT_AUTH_URL>
+    url: https://<YOUR_LANGFUSE_DOMAIN> # e.g. https://langfuse.endpoints.<YOUR_PROJECT_ID>.cloud.goog
   licenseKey: ""
   telemetryEnabled: True
   nextPublicSignUpDisabled: False
@@ -25,7 +25,7 @@ langfuse:
   extraInitContainers: []
   extraVolumeMounts: []
   gateway:
-    deploy: true
+    deploy: false
     annotations:
       networking.gke.io/certmap: <CERTIFICATION_MANAGER_CERT_MAP>
     policy:
@@ -33,10 +33,18 @@ langfuse:
       name: <SSL_POLICY_NAME>
     addressName: <GLOBAL_EXTERNAL_IP_NAME>
   httpRoute:
-    host: <HOST_NAME>
+    gatewayName: dify-gateway
+    gatewayNamespace: dify
+    host: <YOUR_LANGFUSE_DOMAIN> # e.g. langfuse.endpoints.<YOUR_PROJECT_ID>.cloud.goog
   web:
     port: 3000
-    resources: {}
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 2048Mi
     hpa:
       enabled: false
       minReplicas: 1
@@ -51,7 +59,13 @@ langfuse:
         updateMode: Auto
   worker:
     port: 3030
-    resources: {}
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 2000m
+        memory: 2048Mi
     hpa:
       enabled: false
       minReplicas: 1
@@ -68,21 +82,21 @@ langfuse:
   additionalEnv:
     # REDIS
     - name: "REDIS_CONNECTION_STRING"
-      value: "redis://default:<REDIS_PASSWORD>@langfuse-valkey-primary:6379/0"
+      value: "redis://default:crystal@langfuse-valkey-primary:6379/0"
     # CLICKHOUSE
     - name: "CLICKHOUSE_MIGRATION_URL"
       value: "clickhouse://langfuse-clickhouse:9000"
     - name: "CLICKHOUSE_URL"
       value: "http://langfuse-clickhouse:8123"
     - name: "CLICKHOUSE_USER"
-      value: "default"
+      value: "langfuse"
     - name: "CLICKHOUSE_PASSWORD"
-      value: "<CLICKHOUSE_PASSWORD>"
-    # S3 / MinIO
+      value: "crystal"
+    # Google Cloud Storage
     - name: "LANGFUSE_S3_EVENT_UPLOAD_ENABLED"
       value: "true"
     - name: "LANGFUSE_S3_EVENT_UPLOAD_BUCKET"
-      value: "<GCS_BUCKET_NAME>"
+      value: "<YOUR_LANGFUSE_BUCKET_NAME>"
     - name: "LANGFUSE_S3_EVENT_UPLOAD_REGION"
       value: "auto"
     - name: "LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT"
@@ -92,20 +106,18 @@ langfuse:
     - name: "LANGFUSE_S3_EVENT_UPLOAD_PREFIX"
       value: "events/"
     - name: AUTH_GOOGLE_ALLOWED_DOMAINS
-      value: "<ALLOWED_DOMAINS>"
+      value: <YOUR_ALLOWED_ACCOUNT_DOMAINS>
     - name: AUTH_DISABLE_USERNAME_PASSWORD
       value: "true"
 
 serviceAccount:
   create: true
-  annotations:
-    iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT>
 
 secretStore:
   enabled: true
-  projectID: <PROJECT_ID>
-  clusterLocation: <CLUSTER_LOCATION>
-  clusterName: <CLUSTER_NAME>
+  projectID: <YOUR_PROJECT_ID>
+  clusterLocation: asia-northeast1
+  clusterName: <YOUR_CLUSTER_NAME>
 
 externalSecret:
   refreshInterval: 1h
@@ -113,14 +125,6 @@ externalSecret:
     - secretKey: DATABASE_URL
       remoteRef:
         key: LANGFUSE_DATABASE_PROXY_URL # value example: "postgresql://<USER>:<PASSWORD>@localhost:5432/langfuse"
-        version: latest
-    - secretKey: LANGFUSE_PUBLIC_KEY
-      remoteRef:
-        key: LANGFUSE_PUBLIC_KEY
-        version: latest
-    - secretKey: LANGFUSE_SECRET_KEY
-      remoteRef:
-        key: LANGFUSE_SECRET_KEY
         version: latest
     - secretKey: NEXTAUTH_SECRET
       remoteRef:
@@ -172,11 +176,11 @@ affinity:
   nodeAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
-      - matchExpressions:
-        - key: cloud.google.com/gke-nodepool
-          operator: In
-          values:
-          - <NODE_POOL_NAME>
+        - matchExpressions:
+            - key: cloud.google.com/gke-nodepool
+              operator: In
+              values:
+                - langfuse-pool
 
 postgresql:
   host: ""
@@ -188,18 +192,55 @@ postgresql:
       ports:
         postgresql: 5432
   cloudsqlProxy:
-    project: <PROJECT_ID>
-    region: <INSTANCE_REGION>
-    instance: <INSTANCE_NAME>
+    project: <YOUR_PROJECT_ID>
+    region: asia-northeast1
+    instance: <YOUR_INSTANCE_NAME>
 
 clickhouse:
   deploy: true
-  shards: 1 # Fixed. Langfuse does not support multi-shard clusters.
   replicaCount: 3
-  resourcesPreset: large
   auth:
-    username: default
-    password: <CLICKHOUSE_PASSWORD>
+    username: langfuse
+    password: crystal
+  service:
+    httpPort: 8123
+    tcpPort: 9000
+    interserverPort: 9009
+  image:
+    repository: clickhouse/clickhouse-server
+    tag: 25.12.3-alpine
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 4Gi
+    limits:
+      cpu: 2000m
+      memory: 8Gi
+  persistence:
+    enabled: true
+    size: 50Gi
+    storageClass: "premium-rwo"
+  keeper:
+    enabled: true
+    replicaCount: 3
+    clientPort: 2181
+    raftPort: 9444
+    image:
+      repository: clickhouse/clickhouse-server
+      tag: 25.12.3-alpine
+      pullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: ""
 
 valkey:
   deploy: true
@@ -208,7 +249,7 @@ valkey:
     extraFlags:
       - "--maxmemory-policy noeviction"
   auth:
-    password: <VALKEY_PASSWORD>
+    password: crystal
 
 minio:
   deploy: false

@@ -1,0 +1,53 @@
+{{- if .Values.clickhouse.deploy }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "langfuse.fullname" . }}-clickhouse-headless
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "langfuse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: {{ .Values.clickhouse.service.httpPort }}
+      targetPort: http
+      protocol: TCP
+    - name: tcp
+      port: {{ .Values.clickhouse.service.tcpPort }}
+      targetPort: tcp
+      protocol: TCP
+    - name: interserver
+      port: {{ .Values.clickhouse.service.interserverPort }}
+      targetPort: interserver
+      protocol: TCP
+  selector:
+    {{- include "langfuse.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "langfuse.fullname" . }}-clickhouse
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "langfuse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.clickhouse.service.httpPort }}
+      targetPort: http
+      protocol: TCP
+    - name: tcp
+      port: {{ .Values.clickhouse.service.tcpPort }}
+      targetPort: tcp
+      protocol: TCP
+  selector:
+    {{- include "langfuse.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse
+{{- end }}

@@ -1,0 +1,117 @@
+{{- if .Values.clickhouse.deploy }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "langfuse.fullname" . }}-clickhouse
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "langfuse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse
+spec:
+  replicas: {{ .Values.clickhouse.replicaCount }}
+  serviceName: {{ include "langfuse.fullname" . }}-clickhouse-headless
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "langfuse.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: clickhouse
+  template:
+    metadata:
+      labels:
+        {{- include "langfuse.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: clickhouse
+    spec:
+      serviceAccountName: {{ include "langfuse.serviceAccountName" . }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "langfuse.selectorLabels" . | nindent 18 }}
+                  app.kubernetes.io/component: clickhouse
+              topologyKey: kubernetes.io/hostname
+        {{- with .Values.affinity.nodeAffinity }}
+        nodeAffinity:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: clickhouse
+          image: "{{ .Values.clickhouse.image.repository }}:{{ .Values.clickhouse.image.tag }}"
+          imagePullPolicy: {{ .Values.clickhouse.image.pullPolicy }}
+          env:
+            - name: CLICKHOUSE_USER
+              value: {{ .Values.clickhouse.auth.username | quote }}
+            - name: CLICKHOUSE_PASSWORD
+              value: {{ .Values.clickhouse.auth.password | quote }}
+            - name: CLICKHOUSE_REPLICA
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - name: http
+              containerPort: {{ .Values.clickhouse.service.httpPort }}
+              protocol: TCP
+            - name: tcp
+              containerPort: {{ .Values.clickhouse.service.tcpPort }}
+              protocol: TCP
+            - name: interserver
+              containerPort: {{ .Values.clickhouse.service.interserverPort }}
+              protocol: TCP
+          {{- with .Values.clickhouse.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/clickhouse
+            - name: config-dir
+              mountPath: /etc/clickhouse-server/config.d
+            - name: config
+              mountPath: /etc/clickhouse-server/config.d/config.xml
+              subPath: config.xml
+              readOnly: true
+            - name: users-dir
+              mountPath: /etc/clickhouse-server/users.d
+            - name: users
+              mountPath: /etc/clickhouse-server/users.d/users.xml
+              subPath: users.xml
+              readOnly: true
+      volumes:
+        - name: config-dir
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ include "langfuse.fullname" . }}-clickhouse-config
+            items:
+              - key: config.xml
+                path: config.xml
+        - name: users-dir
+          emptyDir: {}
+        - name: users
+          configMap:
+            name: {{ include "langfuse.fullname" . }}-clickhouse-config
+            items:
+              - key: users.xml
+                path: users.xml
+      {{- if not .Values.clickhouse.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+      {{- end }}
+  {{- if .Values.clickhouse.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.clickhouse.persistence.size }}
+        {{- if .Values.clickhouse.persistence.storageClass }}
+        storageClassName: {{ .Values.clickhouse.persistence.storageClass | quote }}
+        {{- end }}
+  {{- end }}
+{{- end }}

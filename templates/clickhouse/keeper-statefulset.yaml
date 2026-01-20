@@ -1,0 +1,97 @@
+{{- if and .Values.clickhouse.deploy .Values.clickhouse.keeper.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "langfuse.fullname" . }}-clickhouse-keeper
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "langfuse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse-keeper
+spec:
+  replicas: {{ .Values.clickhouse.keeper.replicaCount }}
+  serviceName: {{ include "langfuse.fullname" . }}-clickhouse-keeper-headless
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "langfuse.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: clickhouse-keeper
+  template:
+    metadata:
+      labels:
+        {{- include "langfuse.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: clickhouse-keeper
+    spec:
+      serviceAccountName: {{ include "langfuse.serviceAccountName" . }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "langfuse.selectorLabels" . | nindent 18 }}
+                  app.kubernetes.io/component: clickhouse-keeper
+              topologyKey: kubernetes.io/hostname
+        {{- with .Values.affinity.nodeAffinity }}
+        nodeAffinity:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: clickhouse-keeper
+          image: "{{ .Values.clickhouse.keeper.image.repository }}:{{ .Values.clickhouse.keeper.image.tag }}"
+          imagePullPolicy: {{ .Values.clickhouse.keeper.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              export KEEPER_ID=$(( ${HOSTNAME##*-} + 1 ))
+              exec clickhouse keeper --config-file=/etc/clickhouse-keeper/keeper.xml
+          ports:
+            - name: keeper
+              containerPort: {{ .Values.clickhouse.keeper.clientPort }}
+              protocol: TCP
+            - name: raft
+              containerPort: {{ .Values.clickhouse.keeper.raftPort }}
+              protocol: TCP
+          {{- with .Values.clickhouse.keeper.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/clickhouse-keeper
+            - name: config-dir
+              mountPath: /etc/clickhouse-keeper
+            - name: config
+              mountPath: /etc/clickhouse-keeper/keeper.xml
+              subPath: keeper.xml
+              readOnly: true
+      volumes:
+        - name: config-dir
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ include "langfuse.fullname" . }}-clickhouse-keeper-config
+            items:
+              - key: keeper.xml
+                path: keeper.xml
+      {{- if not .Values.clickhouse.keeper.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+      {{- end }}
+  {{- if .Values.clickhouse.keeper.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.clickhouse.keeper.persistence.size }}
+        {{- if .Values.clickhouse.keeper.persistence.storageClass }}
+        storageClassName: {{ .Values.clickhouse.keeper.persistence.storageClass | quote }}
+        {{- end }}
+  {{- end }}
+{{- end }}

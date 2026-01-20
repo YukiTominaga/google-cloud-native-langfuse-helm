@@ -1,0 +1,26 @@
+{{- if and .Values.clickhouse.deploy .Values.clickhouse.keeper.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "langfuse.fullname" . }}-clickhouse-keeper-headless
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "langfuse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse-keeper
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: keeper
+      port: {{ .Values.clickhouse.keeper.clientPort }}
+      targetPort: keeper
+      protocol: TCP
+    - name: raft
+      port: {{ .Values.clickhouse.keeper.raftPort }}
+      targetPort: raft
+      protocol: TCP
+  selector:
+    {{- include "langfuse.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse-keeper
+{{- end }}

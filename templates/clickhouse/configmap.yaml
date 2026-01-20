@@ -1,0 +1,109 @@
+{{- if .Values.clickhouse.deploy }}
+{{- $fullname := include "langfuse.fullname" . -}}
+{{- $ns := .Release.Namespace -}}
+{{- $replicas := int .Values.clickhouse.replicaCount -}}
+{{- $keeperReplicas := int .Values.clickhouse.keeper.replicaCount -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-clickhouse-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "langfuse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse
+data:
+  config.xml: |-
+    <clickhouse>
+      <logger>
+        <level>none</level>
+        <console>true</console>
+        <console_log_level>warning</console_log_level>
+      </logger>
+      <listen_host>0.0.0.0</listen_host>
+      <http_port>{{ .Values.clickhouse.service.httpPort }}</http_port>
+      <tcp_port>{{ .Values.clickhouse.service.tcpPort }}</tcp_port>
+      <interserver_http_port>{{ .Values.clickhouse.service.interserverPort }}</interserver_http_port>
+      <allow_plaintext_password>1</allow_plaintext_password>
+      <path>/var/lib/clickhouse/</path>
+      <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
+      <user_files_path>/var/lib/clickhouse/user_files/</user_files_path>
+      <user_directories>
+        <users_xml>
+          <path>/etc/clickhouse-server/users.d/users.xml</path>
+        </users_xml>
+      </user_directories>
+      <remote_servers>
+        <default>
+          <shard>
+            <internal_replication>true</internal_replication>
+{{- range $i, $_ := until $replicas }}
+            <replica>
+              <host>{{ printf "%s-clickhouse-%d.%s-clickhouse-headless.%s.svc.cluster.local" $fullname $i $fullname $ns }}</host>
+              <port>{{ $.Values.clickhouse.service.tcpPort }}</port>
+              <user from_env="CLICKHOUSE_USER"></user>
+              <password from_env="CLICKHOUSE_PASSWORD"></password>
+            </replica>
+{{- end }}
+          </shard>
+        </default>
+      </remote_servers>
+      <macros>
+        <shard>shard0</shard>
+        <replica from_env="CLICKHOUSE_REPLICA"></replica>
+      </macros>
+      <zookeeper>
+{{- range $i, $_ := until $keeperReplicas }}
+        <node>
+          <host>{{ printf "%s-clickhouse-keeper-%d.%s-clickhouse-keeper-headless.%s.svc.cluster.local" $fullname $i $fullname $ns }}</host>
+          <port>{{ $.Values.clickhouse.keeper.clientPort }}</port>
+        </node>
+{{- end }}
+      </zookeeper>
+    </clickhouse>
+  users.xml: |-
+    <clickhouse>
+      <users>
+        <{{ .Values.clickhouse.auth.username }}>
+          <password>{{ .Values.clickhouse.auth.password }}</password>
+          <networks>
+            <ip>::/0</ip>
+            <ip>0.0.0.0/0</ip>
+          </networks>
+          <profile>default</profile>
+          <quota>default</quota>
+          <grants>
+            <query>GRANT ALL ON *.*</query>
+          </grants>
+        </{{ .Values.clickhouse.auth.username }}>
+          <default>
+            <password>{{ .Values.clickhouse.auth.password }}</password>
+            <networks>
+              <ip>127.0.0.1</ip>
+              <ip>::1</ip>
+            </networks>
+            <profile>default</profile>
+            <quota>default</quota>
+            <grants>
+              <query>GRANT ALL ON *.*</query>
+            </grants>
+        </default>
+      </users>
+      <profiles>
+        <default>
+          <max_memory_usage>0</max_memory_usage>
+        </default>
+      </profiles>
+      <quotas>
+        <default>
+          <interval>
+            <duration>3600</duration>
+            <queries>0</queries>
+            <errors>0</errors>
+            <result_rows>0</result_rows>
+            <read_rows>0</read_rows>
+            <execution_time>0</execution_time>
+          </interval>
+        </default>
+      </quotas>
+    </clickhouse>
+{{- end }}
