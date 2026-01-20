@@ -197,6 +197,10 @@ clickhouse:
     httpPort: 8123
     tcpPort: 9000
     interserverPort: 9009
+  httpRoute:
+    gatewayName: <YOUR_GATEWAY_NAME>
+    gatewayNamespace: <YOUR_GATEWAY_NAMESPACE>
+    host: <YOUR_CLICKHOUSE_DOMAIN> # e.g. clickhouse.endpoints.<YOUR_PROJECT_ID>.cloud.goog
   image:
     repository: clickhouse/clickhouse-server
     tag: 25.12.3-alpine
