@@ -12,6 +12,28 @@ Langfuseが用意しているv3用のHelm chartはGoogle Cloudネイティブで
 - [Cloud SQL Auth Proxy](https://cloud.google.com/sql/docs/postgres/sql-proxy?hl=en)
 - [Google Cloud Storage](https://cloud.google.com/storage?hl=en)
 
+## Create Node Pool
+
+このHelmで起動するPodは`langfuse-pool`という名前のノードプールにPodをスケジュールします。
+事前にクラスタにこの名前でノードプールを作成してください。
+
+```
+gcloud container node-pools create langfuse-pool \
+  --cluster=<YOUR_CLUSTER_NAME> \
+  --location=asia-northeast1 \
+  --machine-type=e2-standard-2 --spot \
+  --num-nodes=1 \
+  --enable-private-nodes \
+  --workload-metadata=GKE_METADATA \
+  --disk-size=20 \
+  --node-version=latest \
+  --enable-surge-upgrade \
+  --enable-autoscaling \
+  --total-max-nodes=6 \
+  --total-min-nodes=1 \
+  --service-account=<YOUR_NODE_SERVICE_ACCOUNT>
+```
+
 ## Additional Google Cloud components
 
 - Global external Application Load Balancer (Gateway)
@@ -25,11 +47,21 @@ Langfuseが用意しているv3用のHelm chartはGoogle Cloudネイティブで
 `langfuse-web` へのトラフィックを受け取るLoadBalancerを作成します。
 クラスタ内の別のアプリケーションへLBを流用できるように、`allowedRoutes` のnamespacesは`from: All` を設定しています。
 
+これの作成は任意であり、クラスタに既にGatewayが作成されている場合はそちらを利用するようにHttpRouteを修正してください。
+
 ### Cloud SQL for PostgreSQL
 
 langfuseのデータベースにはCloud SQL for PostgreSQLを使用するので、事前に用意してください。
 Podにcloud sql proxyコンテナを追加しています。
-Podに設定するKSAに、Cloud SQL Clientのロールを付与したGSAに対してWorkload Identityを設定しています。
+
+Kubernetes Service Account(KSA)がCloud SQLへ接続できるように、以下のコマンドを例にKSAにIAMロールを付与してください。
+
+```
+gcloud projects add-iam-policy-binding projects/<YOUR_PROJECT_ID> \
+  --role=roles/cloudsql.client \
+  --member=principal://iam.googleapis.com/projects/<YOUR_PROJECT_NUMBER>/locations/global/workloadIdentityPools/<YOUR_PROJECT_ID>.svc.id.goog/subject/ns/langfuse/sa/langfuse \
+  --condition=None
+```
 
 ### Secret Manager
 
