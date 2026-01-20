@@ -29,7 +29,6 @@ langfuse:
     annotations:
       networking.gke.io/certmap: <CERTIFICATION_MANAGER_CERT_MAP>
     policy:
-      enabled: true
       name: <SSL_POLICY_NAME>
     addressName: <GLOBAL_EXTERNAL_IP_NAME>
   httpRoute:
@@ -116,8 +115,6 @@ serviceAccount:
 secretStore:
   enabled: true
   projectID: <YOUR_PROJECT_ID>
-  clusterLocation: asia-northeast1
-  clusterName: <YOUR_CLUSTER_NAME>
 
 externalSecret:
   refreshInterval: 1h
@@ -166,8 +163,6 @@ service:
   type: ClusterIP
   port: 3000
 
-resources: {}
-
 nodeSelector: {}
 
 tolerations: []
@@ -183,14 +178,6 @@ affinity:
                 - langfuse-pool
 
 postgresql:
-  host: ""
-  auth: {}
-  deploy: false
-  architecture: standalone
-  primary:
-    service:
-      ports:
-        postgresql: 5432
   cloudsqlProxy:
     project: <YOUR_PROJECT_ID>
     region: asia-northeast1
@@ -244,16 +231,6 @@ clickhouse:
 
 valkey:
   deploy: true
-  architecture: standalone
-  primary:
-    extraFlags:
-      - "--maxmemory-policy noeviction"
+  primary: {}
   auth:
     password: crystal
-
-minio:
-  deploy: false
-  defaultBuckets: 'langfuse'
-  auth: {}
-
-extraManifests: []
