@@ -131,6 +131,10 @@ externalSecret:
       remoteRef:
         key: LANGFUSE_SALT
         version: latest
+    - secretKey: ENCRYPTION_KEY
+      remoteRef:
+        key: LANGFUSE_ENCRYPTION_KEY
+        version: latest
     - secretKey: AUTH_GOOGLE_CLIENT_ID
       remoteRef:
         key: LANGFUSE_AUTH_GOOGLE_CLIENT_ID
