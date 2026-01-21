@@ -196,6 +196,11 @@ clickhouse:
     httpPort: 8123
     tcpPort: 9000
     interserverPort: 9009
+    iap:
+      enabled: true
+      clientID: <YOUR_CLIENT_ID>
+      oauth2ClientSecret:
+        name: <YOUR_CLIENT_SECRET_NAME> # e.g. kubectl create secret generic SECRET_NAME --from-literal=key=CLIENT_SECRET
   httpRoute:
     gatewayName: <YOUR_GATEWAY_NAME>
     gatewayNamespace: <YOUR_GATEWAY_NAMESPACE>

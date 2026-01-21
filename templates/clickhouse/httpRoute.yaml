@@ -27,3 +27,22 @@ spec:
           kind: Service
           port: {{ .Values.clickhouse.service.httpPort }}
           weight: 1
+{{- if .Values.clickhouse.service.iap.enabled }}
+---
+apiVersion: networking.gke.io/v1
+kind: GCPBackendPolicy
+metadata:
+  name: clickhouse-iap-policy
+  namespace: {{ include "common.names.namespace" . }}
+spec:
+  default:
+    iap:
+      enabled: true
+      clientID: {{ .Values.clickhouse.service.iap.clientID }}
+      oauth2ClientSecret:
+        name: {{ .Values.clickhouse.service.iap.oauth2ClientSecret.name }}
+  targetRef:
+    group: ""
+    kind: Service
+    name: {{ include "langfuse.fullname" . }}-clickhouse
+{{- end }}
