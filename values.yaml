@@ -77,6 +77,9 @@ langfuse:
       minAllowed: {}
       updatePolicy:
         updateMode: Auto
+  service:
+    type: ClusterIP
+    httpPort: 3000
 
   additionalEnv:
     # REDIS
@@ -162,10 +165,6 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
-
-service:
-  type: ClusterIP
-  port: 3000
 
 nodeSelector: {}
 

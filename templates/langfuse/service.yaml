@@ -13,9 +13,9 @@ metadata:
     {{- toYaml .Values.service.annotations | nindent 4 }}
   {{- end }}
 spec:
-  type: {{ .Values.service.type }}
+  type: {{ .Values.langfuse.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
+    - port: {{ .Values.langfuse.service.httpPort }}
       targetPort: {{ .Values.langfuse.web.port }}
       protocol: TCP
       name: http
