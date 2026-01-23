@@ -95,6 +95,8 @@ langfuse:
     - name: "CLICKHOUSE_PASSWORD"
       value: "crystal"
     # Google Cloud Storage
+    - name: "LANGFUSE_USE_GOOGLE_CLOUD_STORAGE"
+      value: "true"
     - name: "LANGFUSE_S3_EVENT_UPLOAD_ENABLED"
       value: "true"
     - name: "LANGFUSE_S3_EVENT_UPLOAD_BUCKET"
