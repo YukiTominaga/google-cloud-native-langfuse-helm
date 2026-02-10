@@ -213,11 +213,11 @@ clickhouse:
     pullPolicy: IfNotPresent
   resources:
     requests:
-      cpu: 1000m
-      memory: 4Gi
+      cpu: 500m
+      memory: 3Gi
     limits:
       cpu: 2000m
-      memory: 8Gi
+      memory: 6Gi
   persistence:
     enabled: true
     size: 50Gi
