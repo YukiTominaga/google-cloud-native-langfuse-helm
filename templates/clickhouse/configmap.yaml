@@ -33,13 +33,30 @@ data:
         </users_xml>
       </user_directories>
       <metric_log remove="1"/>
+      <metric_log_0 remove="1"/>
+      <trace_log remove="1"/>
+      <trace_log_0 remove="1"/>
+      <query_log remove="1"/>
+      <query_log_0 remove="1"/>
+      <query_thread_log remove="1"/>
+      <query_thread_log_0 remove="1"/>
+      <part_log remove="1"/>
+      <part_log_0 remove="1"/>
+      <text_log remove="1"/>
+      <text_log_0 remove="1"/>
+      <asynchronous_metric_log remove="1"/>
+      <asynchronous_metric_log_0 remove="1"/>
+      <session_log remove="1"/>
+      <session_log_0 remove="1"/>
+      <zookeeper_log remove="1"/>
+      <zookeeper_log_0 remove="1"/>
       <!-- Merge stability controls -->
-      <background_pool_size>8</background_pool_size>
+      <background_pool_size>4</background_pool_size>
       <background_merges_mutations_concurrency_ratio>1</background_merges_mutations_concurrency_ratio>
       <merge_tree>
-        <max_bytes_to_merge_at_max_space_in_pool>536870912</max_bytes_to_merge_at_max_space_in_pool>
+        <max_bytes_to_merge_at_max_space_in_pool>268435456</max_bytes_to_merge_at_max_space_in_pool>
         <max_bytes_to_merge_at_min_space_in_pool>134217728</max_bytes_to_merge_at_min_space_in_pool>
-        <number_of_free_entries_in_pool_to_lower_max_size_of_merge>6</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
+        <number_of_free_entries_in_pool_to_lower_max_size_of_merge>3</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
         <number_of_free_entries_in_pool_to_execute_mutation>2</number_of_free_entries_in_pool_to_execute_mutation>
         <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>2</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
       </merge_tree>
