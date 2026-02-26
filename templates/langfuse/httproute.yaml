@@ -27,3 +27,16 @@ spec:
           kind: Service
           port: {{ .Values.service.port }}
           weight: 1
+---
+apiVersion: networking.gke.io/v1
+kind: GCPBackendPolicy
+metadata:
+  name: {{ include "langfuse.fullname" . }}-backend-policy
+  namespace: {{ include "common.names.namespace" . }}
+spec:
+  default:
+    timeoutSec: 600
+  targetRef:
+    group: ""
+    kind: Service
+    name: {{ include "langfuse.fullname" . }}-web
