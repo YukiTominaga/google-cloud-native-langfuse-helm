@@ -120,6 +120,8 @@ serviceAccount:
 secretStore:
   enabled: true
   projectID: <YOUR_PROJECT_ID>
+  clusterLocation: <YOUR_CLUSTER_LOCATION>
+  clusterName: <YOUR_CLUSTER_NAME>
 
 externalSecret:
   refreshInterval: 1h
@@ -245,6 +247,9 @@ clickhouse:
 
 valkey:
   deploy: true
-  primary: {}
+  architecture: standalone
+  primary:
+    extraFlags:
+      - "--maxmemory-policy noeviction"
   auth:
     password: crystal
