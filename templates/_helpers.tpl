@@ -89,3 +89,19 @@ Return PostgreSQL fullname
 {{- define "common.names.namespace" -}}
 {{- default .Release.Namespace .Values.namespaceOverride -}}
 {{- end }}
+
+{{/*
+Valkey / Sentinel の起動スクリプトが参照する環境変数
+*/}}
+{{- define "langfuse.valkey.env" -}}
+- name: VALKEY_PASSWORD
+  value: {{ .Values.valkey.auth.password | quote }}
+- name: POD_PREFIX
+  value: {{ include "langfuse.fullname" . }}-valkey
+- name: HEADLESS_DOMAIN
+  value: {{ include "langfuse.fullname" . }}-valkey-headless.{{ include "common.names.namespace" . }}.svc.cluster.local
+- name: REPLICAS
+  value: {{ .Values.valkey.replicaCount | quote }}
+- name: MASTER_NAME
+  value: {{ .Values.valkey.sentinel.masterName | quote }}
+{{- end }}

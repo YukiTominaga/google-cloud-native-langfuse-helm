@@ -43,10 +43,27 @@ gcloud container node-pools create langfuse-pool \
 Spot VMはGoogle Cloud側の都合でいつでも回収され、回収の予告は約30秒前です。回収されたノード上のPodは別のノードで再作成されますが、その間は以下の影響があります。
 
 - **ClickHouse / ClickHouse Keeper**: それぞれ3レプリカを別々のノードに配置しているため、ノード1台の回収であれば動作を継続します。2台以上が同時に回収されるとKeeperが過半数を失い、復旧するまでClickHouseへの書き込みが停止します。データはPersistent Diskに保存しているため、回収されても失われません。
-- **Valkey**: 1レプリカで、データを永続化していません(`emptyDir`)。回収されるとキューに残っていた未処理のジョブが失われます。
+- **Valkey**: Sentinel構成(Valkey 3台 + Sentinel 3台)で、別々のノードに配置しています。マスターのノードが回収されると、数秒〜十数秒でレプリカがマスターに昇格し、キューの内容を引き継ぎます。レプリケーションは非同期のため、回収直前に書き込まれたジョブは失われる可能性があります。データはディスクに永続化していない(`emptyDir`)ため、3台すべてが同時に回収されるとキューの内容は失われます。
 - **langfuse-web / langfuse-worker**: デフォルトでは各1レプリカのため、再作成が完了するまでUI・APIへのアクセスやバックグラウンド処理が停止します。
 
 これらの影響を許容できない場合は、`--spot`を外して通常のVMでノードプールを作成してください。
+
+### リソース設定について
+
+このHelmのデフォルト値は、全てのPodが`e2-standard-4`のノード3台に収まるように、一部のリソースをLangfuseの公式推奨値より低く設定しています。
+
+| Pod | CPU requests | CPU limits | メモリ(requests = limits) | 公式推奨 |
+| --- | --- | --- | --- | --- |
+| langfuse-web | 500m | 2000m | 2Gi | 2 CPU / 4GiB |
+| langfuse-worker | 500m | 2000m | 2Gi | 2 CPU / 4GiB |
+| ClickHouse | 1000m | 2000m | 6Gi | 2 CPU / 8GiB |
+| Valkey | 500m | 1000m | 1536Mi | 1 CPU / 1.5GiB |
+
+- CPUはrequestsだけを下げ、limitsは公式推奨値のままにしています。ノードに空きがあれば推奨値まで使えますが、負荷が重なったときに保証されるのはrequestsの分だけです。
+- メモリは上限そのものを下げています。langfuse-web / langfuse-workerとClickHouseは、データ量やトレースの流量が増えるとメモリ不足でクエリの失敗やPodの再起動が発生する可能性があります。
+- ClickHouseのメモリを変更する場合は、`templates/clickhouse/configmap.yaml`の`max_memory_usage`(1クエリあたりの上限。デフォルトはPodのメモリの半分の3GiB)も合わせて変更してください。
+
+公式推奨値に合わせる場合は`values.yaml`の各`resources`を変更してください(Valkeyのみ`templates/valkey/statefulset.yaml`に直接記述しています)。その場合、ノード3台には収まらなくなるため、ノードの追加(オートスケール)が発生します。
 
 ## Additional Google Cloud components
 

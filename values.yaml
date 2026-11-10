@@ -39,11 +39,11 @@ langfuse:
     port: 3000
     resources:
       requests:
-        cpu: 2000m
-        memory: 4Gi
+        cpu: 500m
+        memory: 2Gi
       limits:
         cpu: 2000m
-        memory: 4Gi
+        memory: 2Gi
     hpa:
       enabled: false
       minReplicas: 1
@@ -60,11 +60,11 @@ langfuse:
     port: 3030
     resources:
       requests:
-        cpu: 2000m
-        memory: 4Gi
+        cpu: 500m
+        memory: 2Gi
       limits:
         cpu: 2000m
-        memory: 4Gi
+        memory: 2Gi
     hpa:
       enabled: false
       minReplicas: 1
@@ -83,8 +83,16 @@ langfuse:
 
   additionalEnv:
     # REDIS
-    - name: "REDIS_CONNECTION_STRING"
-      value: "redis://default:crystal@langfuse-valkey-primary:6379/0"
+    - name: "REDIS_SENTINEL_ENABLED"
+      value: "true"
+    - name: "REDIS_SENTINEL_NODES"
+      value: "langfuse-valkey-0.langfuse-valkey-headless:26379,langfuse-valkey-1.langfuse-valkey-headless:26379,langfuse-valkey-2.langfuse-valkey-headless:26379"
+    - name: "REDIS_SENTINEL_MASTER_NAME"
+      value: "mymaster"
+    - name: "REDIS_AUTH"
+      value: "crystal"
+    - name: "REDIS_SENTINEL_PASSWORD"
+      value: "crystal"
     # CLICKHOUSE
     - name: "CLICKHOUSE_MIGRATION_URL"
       value: "clickhouse://langfuse-clickhouse:9000"
@@ -201,11 +209,11 @@ clickhouse:
     pullPolicy: IfNotPresent
   resources:
     requests:
-      cpu: 2000m
-      memory: 8Gi
+      cpu: 1000m
+      memory: 6Gi
     limits:
       cpu: 2000m
-      memory: 8Gi
+      memory: 6Gi
   persistence:
     enabled: true
     size: 50Gi
@@ -233,7 +241,9 @@ clickhouse:
 
 valkey:
   deploy: true
-  architecture: standalone
+  replicaCount: 3
+  sentinel:
+    masterName: mymaster
   primary:
     extraFlags:
       - "--maxmemory-policy noeviction"

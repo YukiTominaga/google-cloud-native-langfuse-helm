@@ -11,5 +11,101 @@ data:
     # ユーザー名とパスワード設定
     requirepass {{ .Values.valkey.auth.password }}
     user default on >{{ .Values.valkey.auth.password }} ~* &* +@all
-{{- end }}
+    # レプリカがマスターへ接続するときのパスワード
+    masterauth {{ .Values.valkey.auth.password }}
+  common.sh: |
+    # valkey / sentinel の両コンテナから読み込む共通処理
+    ME="${HOSTNAME}.${HEADLESS_DOMAIN}"
+    FIRST="${POD_PREFIX}-0.${HEADLESS_DOMAIN}"
+    export REDISCLI_AUTH="${VALKEY_PASSWORD}"
 
+    # 自分以外のPodのSentinelに、現在のマスターを問い合わせる。
+    # どのSentinelからも得られなければ失敗を返す。
+    discover_master() {
+      i=0
+      while [ "$i" -lt "$REPLICAS" ]; do
+        peer="${POD_PREFIX}-${i}.${HEADLESS_DOMAIN}"
+        i=$((i + 1))
+        [ "$peer" = "$ME" ] && continue
+        found=$(timeout 3 valkey-cli -h "$peer" -p 26379 sentinel get-master-addr-by-name "$MASTER_NAME" 2>/dev/null | head -n 1)
+        case "$found" in
+          *".${HEADLESS_DOMAIN}")
+            echo "$found"
+            return 0
+            ;;
+        esac
+      done
+      return 1
+    }
+  start-valkey.sh: |
+    #!/bin/sh
+    set -eu
+    . /scripts/common.sh
+
+    master=$(discover_master) || master=""
+
+    if [ "$master" = "$ME" ]; then
+      # 自分がマスターとして登録されたまま再起動した場合。
+      # データが空のままマスターとして復帰するとレプリカのデータまで消えるため、
+      # 他のSentinelがレプリカを昇格させるのを待つ(最大60秒)。
+      echo "registered as master; waiting for failover"
+      n=0
+      while [ "$n" -lt 30 ]; do
+        sleep 2
+        n=$((n + 1))
+        master=$(discover_master) || master=""
+        [ "$master" != "$ME" ] && break
+      done
+    fi
+
+    # どのSentinelもマスターを知らない場合(初回起動や全台再起動)は、0番のPodをマスターにする
+    [ -z "$master" ] && master="$FIRST"
+
+    # Sentinelがフェイルオーバー時に設定を書き換えるため、書き込み可能な場所へコピーする
+    cp /etc/valkey/valkey.conf /data/valkey.conf
+
+    set -- /data/valkey.conf --replica-announce-ip "$ME"{{ range .Values.valkey.primary.extraFlags }} {{ . }}{{ end }}
+    if [ "$master" = "$ME" ]; then
+      echo "starting as master"
+    else
+      echo "starting as replica of $master"
+      set -- "$@" --replicaof "$master" 6379
+    fi
+    exec valkey-server "$@"
+  start-sentinel.sh: |
+    #!/bin/sh
+    set -eu
+    . /scripts/common.sh
+
+    # Sentinelは起動時に自分とマスターのホスト名を解決できないと終了するため、解決できるまで待つ
+    while :; do
+      master=$(discover_master) || master="$FIRST"
+      if getent hosts "$ME" >/dev/null && getent hosts "$master" >/dev/null; then
+        break
+      fi
+      echo "waiting for DNS of $ME and $master"
+      sleep 2
+    done
+
+    # Podが再作成されても同じSentinelとして認識されるよう、Pod名から固定のIDを作る。
+    # IDが毎回変わると古いSentinelの情報が残り、フェイルオーバーに必要な過半数を満たせなくなる。
+    myid=$(printf '%s' "$HOSTNAME" | sha1sum | cut -c1-40)
+
+    cat > /data/sentinel.conf <<CONF
+    port 26379
+    dir /data
+    requirepass ${VALKEY_PASSWORD}
+    sentinel myid ${myid}
+    sentinel resolve-hostnames yes
+    sentinel announce-hostnames yes
+    sentinel announce-ip ${ME}
+    sentinel monitor ${MASTER_NAME} ${master} 6379 ${QUORUM}
+    sentinel auth-pass ${MASTER_NAME} ${VALKEY_PASSWORD}
+    sentinel sentinel-pass ${VALKEY_PASSWORD}
+    sentinel down-after-milliseconds ${MASTER_NAME} 5000
+    sentinel failover-timeout ${MASTER_NAME} 60000
+    sentinel parallel-syncs ${MASTER_NAME} 1
+    CONF
+    echo "starting sentinel; monitoring $master"
+    exec valkey-sentinel /data/sentinel.conf
+{{- end }}

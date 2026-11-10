@@ -104,9 +104,9 @@ data:
       </users>
       <profiles>
         <default>
-          <max_memory_usage>4294967296</max_memory_usage>
-          <max_bytes_before_external_group_by>2147483648</max_bytes_before_external_group_by>
-          <max_bytes_before_external_sort>2147483648</max_bytes_before_external_sort>
+          <max_memory_usage>3221225472</max_memory_usage>
+          <max_bytes_before_external_group_by>1610612736</max_bytes_before_external_group_by>
+          <max_bytes_before_external_sort>1610612736</max_bytes_before_external_sort>
           <use_query_cache>0</use_query_cache>
           <query_cache_system_table_handling>ignore</query_cache_system_table_handling>
         </default>
