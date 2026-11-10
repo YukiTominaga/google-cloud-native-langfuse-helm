@@ -1,6 +1,0 @@
-dependencies:
-- name: clickhouse
-  repository: oci://registry-1.docker.io/bitnamicharts
-  version: 7.2.0
-digest: sha256:df6ef88b27438312726520b8acedcd506fff4dda8498c15596bd7f250043de4a
-generated: "2026-01-15T14:45:48.348547+09:00"

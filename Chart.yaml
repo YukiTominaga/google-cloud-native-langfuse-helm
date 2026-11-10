@@ -1,5 +1,5 @@
 apiVersion: v2
-appVersion: "3"
+appVersion: "4.77.0"
 description: Open source LLM engineering platform - LLM observability, metrics, evaluations,
   prompt management.
 home: https://langfuse.com/

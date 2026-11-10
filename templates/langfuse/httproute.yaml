@@ -25,7 +25,7 @@ spec:
       backendRefs:
         - name: {{ include "langfuse.fullname" . }}-web
           kind: Service
-          port: {{ .Values.service.port }}
+          port: {{ .Values.langfuse.service.httpPort }}
           weight: 1
 ---
 apiVersion: networking.gke.io/v1

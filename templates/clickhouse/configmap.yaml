@@ -36,12 +36,8 @@ data:
       <metric_log_0 remove="1"/>
       <trace_log remove="1"/>
       <trace_log_0 remove="1"/>
-      <query_log remove="1"/>
-      <query_log_0 remove="1"/>
       <query_thread_log remove="1"/>
       <query_thread_log_0 remove="1"/>
-      <part_log remove="1"/>
-      <part_log_0 remove="1"/>
       <text_log remove="1"/>
       <text_log_0 remove="1"/>
       <asynchronous_metric_log remove="1"/>
@@ -50,16 +46,6 @@ data:
       <session_log_0 remove="1"/>
       <zookeeper_log remove="1"/>
       <zookeeper_log_0 remove="1"/>
-      <!-- Merge stability controls -->
-      <background_pool_size>4</background_pool_size>
-      <background_merges_mutations_concurrency_ratio>1</background_merges_mutations_concurrency_ratio>
-      <merge_tree>
-        <max_bytes_to_merge_at_max_space_in_pool>268435456</max_bytes_to_merge_at_max_space_in_pool>
-        <max_bytes_to_merge_at_min_space_in_pool>134217728</max_bytes_to_merge_at_min_space_in_pool>
-        <number_of_free_entries_in_pool_to_lower_max_size_of_merge>3</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
-        <number_of_free_entries_in_pool_to_execute_mutation>2</number_of_free_entries_in_pool_to_execute_mutation>
-        <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>2</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
-      </merge_tree>
       <remote_servers>
         <default>
           <shard>
@@ -118,10 +104,9 @@ data:
       </users>
       <profiles>
         <default>
-          <max_memory_usage>805306368</max_memory_usage>
-          <max_bytes_before_external_group_by>134217728</max_bytes_before_external_group_by>
-          <max_bytes_before_external_sort>134217728</max_bytes_before_external_sort>
-          <max_threads>1</max_threads>
+          <max_memory_usage>4294967296</max_memory_usage>
+          <max_bytes_before_external_group_by>2147483648</max_bytes_before_external_group_by>
+          <max_bytes_before_external_sort>2147483648</max_bytes_before_external_sort>
           <use_query_cache>0</use_query_cache>
           <query_cache_system_table_handling>ignore</query_cache_system_table_handling>
         </default>

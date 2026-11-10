@@ -5,12 +5,12 @@ metadata:
   namespace: {{ include "common.names.namespace" . }}
   labels:
     {{- include "langfuse.labels" . | nindent 4 }}
-    {{- with .Values.service.additionalLabels }}
+    {{- with .Values.langfuse.service.additionalLabels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- if .Values.service.annotations }}
+  {{- if .Values.langfuse.service.annotations }}
   annotations:
-    {{- toYaml .Values.service.annotations | nindent 4 }}
+    {{- toYaml .Values.langfuse.service.annotations | nindent 4 }}
   {{- end }}
 spec:
   type: {{ .Values.langfuse.service.type }}
